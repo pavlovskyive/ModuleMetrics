@@ -33,3 +33,19 @@ swift-metrics /path/to/directory <batch (optional)>
 ```
 
 *Note: `batch` referred to maximum concurrent number of files to process. Default value is `10`.*
+
+# Examples
+
+Following example shows processing of `Alamofire` module:
+
+```bash
+:~$ swift-metrics ./Alamofire
+
+Physical lines: 37358
+Logical lines: 22233
+Blank lines: 6450
+Comment lines: 8675
+Commenting level: 23.221264
+
+Elapsed time: 22.762375 milliseconds
+```
