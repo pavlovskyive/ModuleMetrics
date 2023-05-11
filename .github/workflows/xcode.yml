@@ -1,0 +1,19 @@
+name: Xcode - Build and Analyze
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          xcodebuild -project ModuleMetrics.xcodeproj -scheme ModuleMetrics -configuration Release clean build test | xcpretty && exit ${PIPESTATUS[0]}
