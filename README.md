@@ -29,10 +29,10 @@ sudo chmod +x ./install_intel.sh
 # Usage
 
 ```zsh
-swift-metrics /path/to/directory <batch (optional)>
+swift-metrics /path/to/directory <batch-size (optional)>
 ```
 
-*Note: `batch` referred to maximum concurrent number of files to process. Default value is `10`.*
+*Note: `batch` referred to number of files to process sequently. Default value is `5`.*
 
 # Examples
 

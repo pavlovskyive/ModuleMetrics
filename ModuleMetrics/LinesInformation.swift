@@ -9,80 +9,38 @@ import Foundation
 
 /// Structure to calculate and/or store information about lines of code.
 struct LinesInformation {
-
+    
     /// Number of logical lines in the code (i.e., code lines).
-    var logicalLines: Int
+    private (set) var logicalLines: Int
     
     /// Number of comment lines in the code.
-    var commentLines: Int
+    private (set) var commentLines: Int
     
     /// Number of blank lines in the code.
-    var blankLines: Int
+    private (set) var blankLines: Int
     
     /// Total number of lines in the code.
-    var physicalLines: Int {
-        logicalLines + commentLines + blankLines
-    }
+    private (set) var physicalLines: Int
     
     /// Ratio of comment lines to physical lines, expressed as a percentage.
     var commentingLevel: Float {
         Float(commentLines) / Float(physicalLines) * 100
     }
     
-    /// Creates empty object for specific cases.
-    init() {
-        self.logicalLines = 0
-        self.commentLines = 0
-        self.blankLines = 0
-    }
-    
-    /// Counts specific lines from contents.
-    init(contents: String) {
-        let lines = contents
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        
-        var logicalLines = 0
-        var blankLines = 0
-        var commentLines = 0
-
-        var isComment = false
-
-        for line in lines {
-            guard !line.isEmpty else {
-                blankLines += 1
-                
-                continue
-            }
+    init(code: String = "") {
+        guard !code.isEmpty else {
+            self.physicalLines = 0
+            self.logicalLines = 0
+            self.blankLines = 0
+            self.commentLines = 0
             
-            guard !line.starts(with: "/*") else {
-                isComment = true
-                commentLines += 1
-                
-                continue
-            }
-            
-            guard !line.starts(with: "*/") else {
-                isComment = false
-                
-                continue
-            }
-            
-            guard
-                !isComment,
-                !line.contains("//")
-            else {
-                commentLines += 1
-                
-                continue
-            }
-
-            logicalLines += 1
+            return
         }
         
-        self.logicalLines = logicalLines
-        self.commentLines = commentLines
-        self.blankLines = blankLines
+        self.physicalLines = LinesInformation.countPhysicalLines(code)
+        self.logicalLines = LinesInformation.countSLOC(code)
+        self.blankLines = LinesInformation.countBlankLines(code)
+        self.commentLines = LinesInformation.countCommentLines(code)
     }
 }
 
@@ -95,5 +53,113 @@ extension LinesInformation: CustomStringConvertible {
         Comment lines: \(commentLines)
         Commenting level: \(commentingLevel)
         """
+    }
+}
+
+extension Sequence where Element == LinesInformation {
+    var combined: LinesInformation {
+        reduce(into: LinesInformation()) { result, current in
+            result.combine(with: current)
+        }
+    }
+}
+
+fileprivate extension LinesInformation {
+    static let selectionStatements = ["if", "else", "elseif", "?", "try", "catch", "switch"]
+    static let iterationStatements = ["for", "while", "repeat"]
+    static let jumpStatements = ["return", "break", "goto", "exit", "continue"]
+    static let expressionStatements = ["=", "(", "[", "{", "+=", "-=", ";"]
+    static let compilerDirective = ["#"]
+    
+    static func removeComments(_ code: String) -> String {
+        let singleLineCommentPattern = "//.*$"
+        let multiLineCommentPattern = "/\\*.*?\\*/"
+        
+        var codeWithoutComments = code
+        
+        let singleLineCommentRegex = try! NSRegularExpression(pattern: singleLineCommentPattern, options: .anchorsMatchLines)
+        codeWithoutComments = singleLineCommentRegex.stringByReplacingMatches(
+            in: codeWithoutComments,
+            options: [],
+            range: NSRange(location: 0, length: codeWithoutComments.count),
+            withTemplate: ""
+        )
+        
+        let multiLineCommentRegex = try! NSRegularExpression(pattern: multiLineCommentPattern, options: [.dotMatchesLineSeparators, .caseInsensitive])
+        codeWithoutComments = multiLineCommentRegex.stringByReplacingMatches(
+            in: codeWithoutComments,
+            options: [],
+            range: NSRange(location: 0, length: codeWithoutComments.count),
+            withTemplate: ""
+        )
+        
+        return codeWithoutComments
+    }
+    
+    static func countSLOC(_ code: String) -> Int {
+        let code = removeComments(code)
+        
+        let tokens = code.components(separatedBy: .whitespacesAndNewlines)
+        
+        var slocCount = 0
+        
+        for token in tokens {
+            guard !token.isEmpty else {
+                continue
+            }
+            if selectionStatements.contains(token) ||
+                iterationStatements.contains(token) ||
+                jumpStatements.contains(token) ||
+                compilerDirective.contains(token) {
+                slocCount += 1
+                
+                continue
+            }
+            
+            if expressionStatements.contains(token) {
+                slocCount += 1
+            }
+        }
+        
+        return slocCount
+    }
+    
+    static func countCommentLines(_ code: String) -> Int {
+        let lines = code.components(separatedBy: .newlines)
+        var commentLineCount = 0
+        var isInsideComment = false
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            if trimmedLine.contains("/*") {
+                isInsideComment = true
+            }
+            
+            if isInsideComment || trimmedLine.contains("//") || trimmedLine.contains("*/") {
+                commentLineCount += 1
+            }
+            
+            if trimmedLine.contains("*/") {
+                isInsideComment = false
+            }
+        }
+        
+        return commentLineCount
+    }
+    
+    static func countBlankLines(_ code: String) -> Int {
+        code.components(separatedBy: .newlines).filter(\.isEmpty).count
+    }
+    
+    static func countPhysicalLines(_ code: String) -> Int {
+        code.components(separatedBy: .newlines).count
+    }
+    
+    mutating func combine(with second: LinesInformation) {
+        physicalLines += second.physicalLines
+        logicalLines += second.logicalLines
+        blankLines += second.blankLines
+        commentLines += second.commentLines
     }
 }

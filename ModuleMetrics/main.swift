@@ -10,12 +10,12 @@ import Foundation
 fileprivate let args = CommandLine.arguments
 
 /// Max batch size for concurrent computation. Default value is optimal, but can be configured with command line param.
-fileprivate var maxConcurrentFiles = 10
+fileprivate var batchSize = 5
 
 switch args.count {
 case 3:
     /// Parse maxConcurrentFiles parameter from command line args.
-    maxConcurrentFiles = Int(args[2]) ?? maxConcurrentFiles
+    batchSize = Int(args[2]) ?? batchSize
     
     fallthrough
 case 2:
@@ -24,7 +24,7 @@ case 2:
     runProfiled {
         let totalMetrics = countMetricsForDirectory(
             url: url,
-            maxConcurrentFiles: maxConcurrentFiles
+            batchSize: batchSize
         )
 
         print(totalMetrics)
@@ -32,7 +32,7 @@ case 2:
     
     exit(0)
 default:
-    print("Usage: \(args[0]) <directory> <max-concurrent-files (optional)>")
+    print("Usage: \(args[0]) <directory> <batch-size (optional)>")
     
     exit(1)
 }

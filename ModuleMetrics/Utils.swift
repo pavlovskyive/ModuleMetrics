@@ -12,7 +12,7 @@ import Foundation
 /// Count codestyle metrics for swift files in directory.
 func countMetricsForDirectory(
     url directory: URL,
-    maxConcurrentFiles: Int = 10
+    batchSize: Int = 10
 ) -> LinesInformation {
     let fileManager = FileManager.default
     let enumerator = fileManager.enumerator(
@@ -35,8 +35,8 @@ func countMetricsForDirectory(
         }
     }
     
-    if files.count > maxConcurrentFiles {
-        return countMetricsInParallel(files: files, maxConcurrentFiles: maxConcurrentFiles)
+    if files.count > batchSize {
+        return countMetricsInParallel(files: files, batchSize: batchSize)
     } else {
         return countMetricsSequentially(files: files)
     }
@@ -59,46 +59,36 @@ func runProfiled(operation: () -> Void) {
 
 fileprivate func countMetricsInParallel(
     files: [String],
-    maxConcurrentFiles: Int
+    batchSize: Int
 ) -> LinesInformation {
     let queue = DispatchQueue(label: "metrics", attributes: .concurrent)
     let group = DispatchGroup()
 
-    /// Calculate the number of files per batch.
-    let batchSize = (files.count + maxConcurrentFiles - 1) / maxConcurrentFiles
-
-    /// Store the line count information for each batch.
     var batchInfos: [LinesInformation] = []
 
-    for batchIndex in 0..<(files.count + batchSize - 1) / batchSize {
-        let batchStart = batchIndex * batchSize
-        let batchEnd = min((batchIndex + 1) * batchSize, files.count)
+    for index in stride(from: 0, to: files.count, by: batchSize) {
+        let batchStart = index
+        let batchEnd = min(index + batchSize, files.count)
+        let batchFiles = Array(files[batchStart..<batchEnd])
 
         group.enter()
 
         queue.async {
-            let batchFiles = Array(files[batchStart..<batchEnd])
             let batchInfo = countMetricsSequentially(files: batchFiles)
 
-            batchInfos.append(batchInfo)
+            queue.sync {
+                batchInfos.append(batchInfo)
+            }
+
             group.leave()
         }
     }
 
     group.wait()
 
-    /// Combine the line count information for each batch.
-    return combineLineInfos(batchInfos)
+    return batchInfos.combined
 }
 
 fileprivate func countMetricsSequentially(files: [String]) -> LinesInformation {
-    combineLineInfos(files.map { LinesInformation(contents: $0) })
-}
-
-fileprivate func combineLineInfos(_ infos: [LinesInformation]) -> LinesInformation {
-    infos.reduce(into: LinesInformation()) { result, current in
-        result.logicalLines += current.logicalLines
-        result.commentLines += current.commentLines
-        result.blankLines += current.blankLines
-    }
+    files.map { LinesInformation(code: $0) }.combined
 }
