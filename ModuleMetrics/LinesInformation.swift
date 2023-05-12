@@ -65,11 +65,11 @@ extension Sequence where Element == LinesInformation {
 }
 
 fileprivate extension LinesInformation {
-    static let selectionStatements = ["if", "else", "elseif", "?", "try", "catch", "switch"]
-    static let iterationStatements = ["for", "while", "repeat"]
-    static let jumpStatements = ["return", "break", "goto", "exit", "continue"]
-    static let expressionStatements = ["=", "(", "[", "{", "+=", "-=", ";"]
-    static let compilerDirective = ["#"]
+    static let selectionStatements = Set(["if", "else", "elseif", "?", "try", "catch", "switch"])
+    static let iterationStatements = Set(["for", "while", "repeat"])
+    static let jumpStatements = Set(["return", "break", "exit", "continue"])
+    static let expressionStatements = Set(["=", "(", "[", "{", "+=", "-=", ";"])
+    static let compilerDirective = Set(["#"])
     
     static func removeComments(_ code: String) -> String {
         let singleLineCommentPattern = "//.*$"
